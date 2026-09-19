@@ -78,7 +78,7 @@ export default function Register() {
         </form>
 
         <p className="text-sm text-[#1C1C1A]/60 mt-4 text-center">
-          Already have an account? <Link to="/" className="text-[#2D5A4A] underline">Log in</Link>
+          Already have an account? <Link to="/login" className="text-[#2D5A4A] underline">Log in</Link>
         </p>
       </div>
     </div>

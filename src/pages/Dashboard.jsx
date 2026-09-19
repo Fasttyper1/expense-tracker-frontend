@@ -9,6 +9,7 @@ const COLORS = ['#2D5A4A', '#C4634A', '#3D6B8C', '#B08968', '#7A5C8C', '#A8763E'
 export default function Dashboard() {
   const [expenses, setExpenses] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ category: 'Food', amount: '', date: '', note: '' });
   const navigate = useNavigate();
 
@@ -23,26 +24,57 @@ export default function Dashboard() {
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.removeItem('token');
-        navigate('/');
+        navigate('/login');
       }
     }
   };
 
-  const handleAddExpense = async (e) => {
+  const resetForm = () => {
+    setForm({ category: 'Food', amount: '', date: '', note: '' });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/expenses', { ...form, amount: parseFloat(form.amount) });
-      setForm({ category: 'Food', amount: '', date: '', note: '' });
-      setShowForm(false);
+      const payload = { ...form, amount: parseFloat(form.amount) };
+      if (editingId) {
+        await api.put(`/expenses/${editingId}`, payload);
+      } else {
+        await api.post('/expenses', payload);
+      }
+      resetForm();
       fetchExpenses();
     } catch (err) {
-      console.error('Failed to add expense', err);
+      console.error('Failed to save expense', err);
+    }
+  };
+
+  const handleEditClick = (exp) => {
+    setForm({
+      category: exp.category,
+      amount: exp.amount,
+      date: exp.date,
+      note: exp.note || '',
+    });
+    setEditingId(exp.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this expense?')) return;
+    try {
+      await api.delete(`/expenses/${id}`);
+      fetchExpenses();
+    } catch (err) {
+      console.error('Failed to delete expense', err);
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    navigate('/');
+    navigate('/login');
   };
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -79,7 +111,7 @@ export default function Dashboard() {
               </p>
             </div>
             <button
-              onClick={() => setShowForm(!showForm)}
+              onClick={() => (showForm ? resetForm() : setShowForm(true))}
               className="px-4 py-2 bg-[#2D5A4A] text-white text-sm rounded hover:bg-[#24483b] transition"
             >
               {showForm ? 'Cancel' : '+ Add expense'}
@@ -88,9 +120,12 @@ export default function Dashboard() {
 
           {showForm && (
             <form
-              onSubmit={handleAddExpense}
+              onSubmit={handleSubmit}
               className="mb-6 p-5 bg-white border border-[#E4E1D8] rounded space-y-3"
             >
+              <p className="text-sm text-[#1C1C1A]/50">
+                {editingId ? 'Edit expense' : 'New expense'}
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <select
                   value={form.category}
@@ -129,7 +164,7 @@ export default function Dashboard() {
                 type="submit"
                 className="w-full py-2 bg-[#2D5A4A] text-white text-sm rounded hover:bg-[#24483b] transition"
               >
-                Save expense
+                {editingId ? 'Update expense' : 'Save expense'}
               </button>
             </form>
           )}
@@ -146,7 +181,7 @@ export default function Dashboard() {
               .map((exp) => (
                 <div
                   key={exp.id}
-                  className="flex items-center justify-between py-3 border-b border-[#E4E1D8]/60"
+                  className="group flex items-center justify-between py-3 border-b border-[#E4E1D8]/60"
                 >
                   <div className="flex items-center gap-3">
                     <div
@@ -160,9 +195,25 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <p className="font-mono-ledger text-sm text-[#1C1C1A]">
-                    -${exp.amount.toFixed(2)}
-                  </p>
+                  <div className="flex items-center gap-4">
+                    <p className="font-mono-ledger text-sm text-[#1C1C1A]">
+                      -${exp.amount.toFixed(2)}
+                    </p>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+                      <button
+                        onClick={() => handleEditClick(exp)}
+                        className="text-xs text-[#1C1C1A]/50 hover:text-[#2D5A4A]"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(exp.id)}
+                        className="text-xs text-[#1C1C1A]/50 hover:text-[#C4634A]"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
           </div>
